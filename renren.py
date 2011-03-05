@@ -1,8 +1,7 @@
-import urllib
-import urllib2, cookielib
 import re
 import time
-
+import urllib
+import urllib2, cookielib
 
 class Renren(object):
     def __init__(self, username, password):
