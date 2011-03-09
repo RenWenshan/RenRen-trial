@@ -2,6 +2,8 @@ import re
 import time
 import urllib
 import urllib2, cookielib
+from multiprocessing import Pool
+from multiprocessing import Process
 
 class Renren(object):
     def __init__(self, username, password):
@@ -42,23 +44,29 @@ class Renren(object):
         x = x.replace('false', 'False')
         friends = eval(x)
         return friends
-        
-    def getLargeImages(self, path):
-        friends = self.friends()
-        for i in range(len(friends)):
+
+    def makeTaskList(self):
+        # produce tasks list
+        friends = []
+        try:
+            friends = self.friends()
+        except:
+            print 'can\'t get friends list'
+
+        self.taskList = []
+        for i in range(10):
+        # for i in range(len(friends)):
             for key in friends[i].keys():
                 if key == 'id':
                     req = "http://www.renren.com/profile.do?id="+str(friends[i][key])
                     r = self.opener.open(req)
-                    fri_name = eval("u'"+friends[i]['name']+"'").encode('utf-8')
 
                     req = "http://photo.renren.com/getalbumprofile.do?owner=" + str(friends[i]['id'])
                     try:
                         r = urllib2.urlopen(req)
-                    except urllib2.URLError:
-                        print friends[i]['id'], " : ",  fri_name, "  Time out"
+                    except:
                         continue
-                    
+
                     data = r.read()
                     f = re.search('http://photo.renren.com/photo/\d*/photo-\d*\?curpage=0&t=?n?u?l?l?',data)
                     
@@ -75,7 +83,6 @@ class Renren(object):
                         print friends[i]['id'], " : ",  fri_name, "  Time out"
                         continue
 
-
                     f = re.search('http:\\\\/\\\\/hdn.xnimg.cn\\\\/photos\\\\/hdn\d*\\\\/.*?jpg',data)
                     try:
                         urlT = f.group()
@@ -84,15 +91,80 @@ class Renren(object):
                         continue
                     
                     urlB = urlT.replace('\\','')
+                    self.taskList.append(urlB)
+        return self.taskList
                     
-                    try:
-                        r = urllib2.urlopen(urlB)
-                    except urllib2.URLError:
-                        print friends[i]['id'], " : ", fri_name, "  Time out"
-                        continue
-                    img = r.read()
-                    output = open(path + fri_name + '.jpg', 'wb')
-                    output.write(img)
-                    output.close()
-                    print friends[i]['id'], " : ", fri_name, " Got"
+    def getPotrait(self, url):
+        # get the current potraits of a friend on Renren.com
+        try:
+            r = urllib2.urlopen(url)
+        except urllib2.URLError:
+            print "Time out"
+
+        tmp = re.search('large_[\d\D]*.jpg', url)
+        image_name = tmp.group()
+        
+        img = r.read()
+        output = open(image_name, 'wb')
+        output.write(img)
+        output.close()
+        
+    def getLargePotraits(self):
+
+        tasks = self.makeTaskList()
+        pool = Pool(processes = 3)
+        pool.map(self.getPotrait, tasks)
+
+    # def getLargeImages(self, path):
+    #     friends = self.friends()
+    #     for i in range(len(friends)):
+    #         for key in friends[i].keys():
+    #             if key == 'id':
+    #                 req = "http://www.renren.com/profile.do?id="+str(friends[i][key])
+    #                 r = self.opener.open(req)
+    #                 fri_name = eval("u'"+friends[i]['name']+"'").encode('utf-8')
+
+    #                 req = "http://photo.renren.com/getalbumprofile.do?owner=" + str(friends[i]['id'])
+    #                 try:
+    #                     r = urllib2.urlopen(req)
+    #                 except urllib2.URLError:
+    #                     print friends[i]['id'], " : ",  fri_name, "  Time out"
+    #                     continue
+                    
+    #                 data = r.read()
+    #                 f = re.search('http://photo.renren.com/photo/\d*/photo-\d*\?curpage=0&t=?n?u?l?l?',data)
+                    
+    #                 try:
+    #                     urlA = f.group()
+    #                 except AttributeError:
+    #                     print friends[i]['id'], " : ",  fri_name, "  Regexp Error"
+    #                     continue
+
+    #                 try:
+    #                     r = urllib2.urlopen(urlA)
+    #                     data = r.read()
+    #                 except (urllib2.URLError):
+    #                     print friends[i]['id'], " : ",  fri_name, "  Time out"
+    #                     continue
+
+
+    #                 f = re.search('http:\\\\/\\\\/hdn.xnimg.cn\\\\/photos\\\\/hdn\d*\\\\/.*?jpg',data)
+    #                 try:
+    #                     urlT = f.group()
+    #                 except AttributeError:
+    #                     print friends[i]['id'], " : ",  fri_name, "  Regexp Error"
+    #                     continue
+                    
+    #                 urlB = urlT.replace('\\','')
+                    
+    #                 try:
+    #                     r = urllib2.urlopen(urlB)
+    #                 except urllib2.URLError:
+    #                     print friends[i]['id'], " : ", fri_name, "  Time out"
+    #                     continue
+    #                 img = r.read()
+    #                 output = open(path + fri_name + '.jpg', 'wb')
+    #                 output.write(img)
+    #                 output.close()
+    #                 print friends[i]['id'], " : ", fri_name, " Got"
 
